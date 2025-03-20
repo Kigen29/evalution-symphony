@@ -1,24 +1,15 @@
 
-import { supabase } from "@/lib/supabase";
+import { supabase } from '@/lib/supabase';
 
 export type Profile = {
   id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  department: string;
-  position: string;
-  manager_id?: string;
-  avatar_url?: string;
-  created_at: string;
-};
-
-export type ProfileFormData = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  department: string;
-  position: string;
+  first_name: string | null;
+  last_name: string | null;
+  position: string | null;
+  department: string | null;
+  manager: string | null;
+  avatar_url: string | null;
+  updated_at: string | null;
 };
 
 export const getProfile = async (): Promise<Profile | null> => {
@@ -26,7 +17,7 @@ export const getProfile = async (): Promise<Profile | null> => {
     const { data: user } = await supabase.auth.getUser();
     
     if (!user.user) {
-      throw new Error('No user logged in');
+      return null;
     }
     
     const { data, error } = await supabase
@@ -41,12 +32,12 @@ export const getProfile = async (): Promise<Profile | null> => {
     
     return data;
   } catch (error) {
-    console.error('Error getting profile:', error);
+    console.error('Error fetching profile:', error);
     return null;
   }
 };
 
-export const updateProfile = async (profileData: ProfileFormData): Promise<Profile | null> => {
+export const updateProfile = async (updates: Partial<Profile>): Promise<Profile | null> => {
   try {
     const { data: user } = await supabase.auth.getUser();
     
@@ -54,19 +45,13 @@ export const updateProfile = async (profileData: ProfileFormData): Promise<Profi
       throw new Error('No user logged in');
     }
     
-    const updates = {
-      id: user.user.id,
-      first_name: profileData.firstName,
-      last_name: profileData.lastName,
-      email: profileData.email,
-      department: profileData.department,
-      position: profileData.position,
-      updated_at: new Date().toISOString(),
-    };
-    
     const { data, error } = await supabase
       .from('profiles')
-      .upsert(updates)
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.user.id)
       .select()
       .single();
       
@@ -81,7 +66,7 @@ export const updateProfile = async (profileData: ProfileFormData): Promise<Profi
   }
 };
 
-export const uploadAvatar = async (file: File): Promise<string | null> => {
+export const uploadProfilePicture = async (file: File): Promise<string | null> => {
   try {
     const { data: user } = await supabase.auth.getUser();
     
@@ -90,34 +75,26 @@ export const uploadAvatar = async (file: File): Promise<string | null> => {
     }
     
     const fileExt = file.name.split('.').pop();
-    const fileName = `${user.user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
+    const filePath = `${user.user.id}/avatar.${fileExt}`;
     
     const { error: uploadError } = await supabase.storage
-      .from('user-content')
-      .upload(filePath, file);
+      .from('avatars')
+      .upload(filePath, file, { upsert: true });
       
     if (uploadError) {
       throw uploadError;
     }
     
     const { data } = supabase.storage
-      .from('user-content')
+      .from('avatars')
       .getPublicUrl(filePath);
       
     // Update profile with new avatar URL
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ avatar_url: data.publicUrl })
-      .eq('id', user.user.id);
-      
-    if (updateError) {
-      throw updateError;
-    }
+    await updateProfile({ avatar_url: data.publicUrl });
     
     return data.publicUrl;
   } catch (error) {
-    console.error('Error uploading avatar:', error);
+    console.error('Error uploading profile picture:', error);
     return null;
   }
 };

@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   AlertCircle,
   ChevronDown,
@@ -27,49 +26,69 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { supabase, Objective, mapDbObjectiveToObjective } from "@/lib/supabase";
+import { Objective } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// We're going to replace the hardcoded data with data from Supabase
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { 
+  getObjectives, 
+  createObjective, 
+  updateObjective, 
+  deleteObjective 
+} from "@/services/ObjectivesService";
 
 const ObjectivesTracker = () => {
-  const [objectives, setObjectives] = useState<Objective[]>([]);
+  const queryClient = useQueryClient();
   const [expandedObjective, setExpandedObjective] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingObjective, setEditingObjective] = useState<Objective | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [objectiveToDelete, setObjectiveToDelete] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   // Fetch objectives from Supabase
-  useEffect(() => {
-    const fetchObjectives = async () => {
-      try {
-        setIsLoading(true);
-        const { data, error } = await supabase
-          .from('objectives')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (error) {
-          throw error;
-        }
-        
-        if (data) {
-          // Transform data to match our Objective type
-          const mappedObjectives = data.map(mapDbObjectiveToObjective);
-          setObjectives(mappedObjectives);
-        }
-      } catch (error) {
-        console.error('Error fetching objectives:', error);
-        toast.error('Failed to load objectives');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const { data: objectives = [], isLoading } = useQuery({
+    queryKey: ['objectives'],
+    queryFn: getObjectives
+  });
 
-    fetchObjectives();
-  }, []);
+  // Create objective mutation
+  const createObjectiveMutation = useMutation({
+    mutationFn: (data: Omit<Objective, "id" | "progress">) => createObjective(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['objectives'] });
+      toast.success('Objective added successfully');
+    },
+    onError: (error) => {
+      console.error('Error adding objective:', error);
+      toast.error('Failed to add objective');
+    }
+  });
+
+  // Update objective mutation
+  const updateObjectiveMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number, data: Partial<Objective> }) => 
+      updateObjective(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['objectives'] });
+      toast.success('Objective updated successfully');
+    },
+    onError: (error) => {
+      console.error('Error updating objective:', error);
+      toast.error('Failed to update objective');
+    }
+  });
+
+  // Delete objective mutation
+  const deleteObjectiveMutation = useMutation({
+    mutationFn: (id: number) => deleteObjective(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['objectives'] });
+      toast.success('Objective deleted successfully');
+    },
+    onError: (error) => {
+      console.error('Error deleting objective:', error);
+      toast.error('Failed to delete objective');
+    }
+  });
 
   const toggleObjective = (id: number) => {
     setExpandedObjective(expandedObjective === id ? null : id);
@@ -101,65 +120,18 @@ const ObjectivesTracker = () => {
   };
 
   const handleSaveObjective = async (data: Omit<Objective, "id" | "progress">) => {
-    try {
-      if (editingObjective) {
-        // Update existing objective
-        const { error } = await supabase
-          .from('objectives')
-          .update({
-            title: data.title,
-            description: data.description,
-            kpi: data.kpi,
-            weight: data.weight,
-            target: data.target,
-            status: data.status,
-            due_date: data.dueDate
-          })
-          .eq('id', editingObjective.id.toString());
-        
-        if (error) throw error;
-
-        // Update local state
-        setObjectives(objectives.map(obj =>
-          obj.id === editingObjective.id
-            ? { ...obj, ...data }
-            : obj
-        ));
-        
-        toast.success('Objective updated successfully');
-      } else {
-        // Add new objective
-        const { data: newObjective, error } = await supabase
-          .from('objectives')
-          .insert([{
-            title: data.title,
-            description: data.description,
-            kpi: data.kpi,
-            weight: data.weight,
-            target: data.target,
-            progress: 0,
-            status: data.status,
-            due_date: data.dueDate,
-            user_id: (await supabase.auth.getUser()).data.user?.id || 'anonymous'
-          }])
-          .select()
-          .single();
-        
-        if (error) throw error;
-        
-        // Add to local state
-        if (newObjective) {
-          const mappedObjective = mapDbObjectiveToObjective(newObjective);
-          setObjectives([mappedObjective, ...objectives]);
-        }
-        
-        toast.success('Objective added successfully');
-      }
-    } catch (error) {
-      console.error('Error saving objective:', error);
-      toast.error(editingObjective ? 'Failed to update objective' : 'Failed to add objective');
+    if (editingObjective) {
+      // Update existing objective
+      updateObjectiveMutation.mutate({ 
+        id: editingObjective.id, 
+        data 
+      });
+    } else {
+      // Add new objective
+      createObjectiveMutation.mutate(data);
     }
     
+    setDialogOpen(false);
     setEditingObjective(undefined);
   };
 
@@ -171,21 +143,7 @@ const ObjectivesTracker = () => {
 
   const handleDeleteObjective = async () => {
     if (objectiveToDelete !== null) {
-      try {
-        const { error } = await supabase
-          .from('objectives')
-          .delete()
-          .eq('id', objectiveToDelete.toString());
-        
-        if (error) throw error;
-        
-        // Update local state
-        setObjectives(objectives.filter(obj => obj.id !== objectiveToDelete));
-        toast.success("Objective deleted successfully");
-      } catch (error) {
-        console.error('Error deleting objective:', error);
-        toast.error('Failed to delete objective');
-      }
+      deleteObjectiveMutation.mutate(objectiveToDelete);
     }
     setDeleteDialogOpen(false);
     setObjectiveToDelete(null);

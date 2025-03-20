@@ -7,9 +7,37 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import ObjectiveDialog from "@/components/ObjectiveDialog";
 import { Objective } from "@/lib/supabase";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { createObjective } from "@/services/ObjectivesService";
+import { toast } from "sonner";
+import { useUser } from "@/contexts/UserContext";
 
 const Objectives = () => {
+  const { user } = useUser();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const createObjectiveMutation = useMutation({
+    mutationFn: (data: Omit<Objective, "id" | "progress">) => createObjective(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['objectives'] });
+      toast.success('Objective added successfully');
+      setDialogOpen(false);
+    },
+    onError: (error) => {
+      console.error('Error adding objective:', error);
+      toast.error('Failed to add objective');
+    }
+  });
+
+  const handleSaveObjective = (values: Omit<Objective, "id" | "progress">) => {
+    if (!user) {
+      toast.error('You must be logged in to create objectives');
+      return;
+    }
+    
+    createObjectiveMutation.mutate(values);
+  };
 
   return (
     <DashboardLayout>
@@ -38,10 +66,7 @@ const Objectives = () => {
       <ObjectiveDialog 
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSave={(values) => {
-          console.log("Values from page button:", values);
-          setDialogOpen(false);
-        }}
+        onSave={handleSaveObjective}
         isEditing={false}
       />
     </DashboardLayout>
