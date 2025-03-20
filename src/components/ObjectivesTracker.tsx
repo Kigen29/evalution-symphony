@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   AlertCircle,
   ChevronDown,
@@ -27,89 +27,49 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { supabase, Objective, mapDbObjectiveToObjective } from "@/lib/supabase";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Sample objectives data - this would come from an API in a real app
-const initialObjectives = [
-  {
-    id: 1,
-    title: "Improve customer satisfaction score",
-    description:
-      "Increase the average customer satisfaction rating from 4.2 to 4.5",
-    kpi: "Customer Satisfaction Rating",
-    weight: 20,
-    target: "4.5/5.0",
-    progress: 80,
-    status: "On Track" as const,
-    dueDate: "2023-12-31",
-  },
-  {
-    id: 2,
-    title: "Reduce operational costs",
-    description: "Decrease operational expenses by 15% through process optimization",
-    kpi: "Percentage Cost Reduction",
-    weight: 15,
-    target: "15%",
-    progress: 60,
-    status: "At Risk" as const,
-    dueDate: "2023-12-31",
-  },
-  {
-    id: 3,
-    title: "Implement new compliance framework",
-    description:
-      "Roll out updated compliance procedures across all departments",
-    kpi: "Implementation Completion",
-    weight: 25,
-    target: "100%",
-    progress: 45,
-    status: "Delayed" as const,
-    dueDate: "2023-12-31",
-  },
-  {
-    id: 4,
-    title: "Conduct staff training sessions",
-    description:
-      "Complete quarterly training sessions for all staff members",
-    kpi: "Training Sessions Completed",
-    weight: 10,
-    target: "4 sessions",
-    progress: 100,
-    status: "Completed" as const,
-    dueDate: "2023-12-31",
-  },
-  {
-    id: 5,
-    title: "Develop strategic partnerships",
-    description:
-      "Establish at least 3 new strategic partnerships with key stakeholders",
-    kpi: "New Partnerships",
-    weight: 15,
-    target: "3 partnerships",
-    progress: 33,
-    status: "On Track" as const,
-    dueDate: "2023-12-31",
-  },
-];
-
-export type Objective = {
-  id: number;
-  title: string;
-  description: string;
-  kpi: string;
-  weight: number;
-  target: string;
-  progress: number;
-  status: "On Track" | "At Risk" | "Delayed" | "Completed";
-  dueDate: string;
-};
+// We're going to replace the hardcoded data with data from Supabase
 
 const ObjectivesTracker = () => {
-  const [objectives, setObjectives] = useState<Objective[]>(initialObjectives);
+  const [objectives, setObjectives] = useState<Objective[]>([]);
   const [expandedObjective, setExpandedObjective] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingObjective, setEditingObjective] = useState<Objective | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [objectiveToDelete, setObjectiveToDelete] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch objectives from Supabase
+  useEffect(() => {
+    const fetchObjectives = async () => {
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('objectives')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          // Transform data to match our Objective type
+          const mappedObjectives = data.map(mapDbObjectiveToObjective);
+          setObjectives(mappedObjectives);
+        }
+      } catch (error) {
+        console.error('Error fetching objectives:', error);
+        toast.error('Failed to load objectives');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchObjectives();
+  }, []);
 
   const toggleObjective = (id: number) => {
     setExpandedObjective(expandedObjective === id ? null : id);
@@ -140,24 +100,66 @@ const ObjectivesTracker = () => {
     setDialogOpen(true);
   };
 
-  const handleSaveObjective = (data: Omit<Objective, "id" | "progress">) => {
-    if (editingObjective) {
-      // Update existing objective
-      setObjectives(
-        objectives.map((obj) =>
+  const handleSaveObjective = async (data: Omit<Objective, "id" | "progress">) => {
+    try {
+      if (editingObjective) {
+        // Update existing objective
+        const { error } = await supabase
+          .from('objectives')
+          .update({
+            title: data.title,
+            description: data.description,
+            kpi: data.kpi,
+            weight: data.weight,
+            target: data.target,
+            status: data.status,
+            due_date: data.dueDate
+          })
+          .eq('id', editingObjective.id.toString());
+        
+        if (error) throw error;
+
+        // Update local state
+        setObjectives(objectives.map(obj =>
           obj.id === editingObjective.id
-            ? { ...obj, ...data, progress: obj.progress }
+            ? { ...obj, ...data }
             : obj
-        )
-      );
-    } else {
-      // Add new objective
-      const newId = Math.max(0, ...objectives.map((o) => o.id)) + 1;
-      setObjectives([
-        ...objectives,
-        { ...data, id: newId, progress: 0 },
-      ]);
+        ));
+        
+        toast.success('Objective updated successfully');
+      } else {
+        // Add new objective
+        const { data: newObjective, error } = await supabase
+          .from('objectives')
+          .insert([{
+            title: data.title,
+            description: data.description,
+            kpi: data.kpi,
+            weight: data.weight,
+            target: data.target,
+            progress: 0,
+            status: data.status,
+            due_date: data.dueDate,
+            user_id: (await supabase.auth.getUser()).data.user?.id || 'anonymous'
+          }])
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        // Add to local state
+        if (newObjective) {
+          const mappedObjective = mapDbObjectiveToObjective(newObjective);
+          setObjectives([mappedObjective, ...objectives]);
+        }
+        
+        toast.success('Objective added successfully');
+      }
+    } catch (error) {
+      console.error('Error saving objective:', error);
+      toast.error(editingObjective ? 'Failed to update objective' : 'Failed to add objective');
     }
+    
     setEditingObjective(undefined);
   };
 
@@ -167,10 +169,23 @@ const ObjectivesTracker = () => {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteObjective = () => {
+  const handleDeleteObjective = async () => {
     if (objectiveToDelete !== null) {
-      setObjectives(objectives.filter((obj) => obj.id !== objectiveToDelete));
-      toast.success("Objective deleted successfully");
+      try {
+        const { error } = await supabase
+          .from('objectives')
+          .delete()
+          .eq('id', objectiveToDelete.toString());
+        
+        if (error) throw error;
+        
+        // Update local state
+        setObjectives(objectives.filter(obj => obj.id !== objectiveToDelete));
+        toast.success("Objective deleted successfully");
+      } catch (error) {
+        console.error('Error deleting objective:', error);
+        toast.error('Failed to delete objective');
+      }
     }
     setDeleteDialogOpen(false);
     setObjectiveToDelete(null);
@@ -204,7 +219,9 @@ const ObjectivesTracker = () => {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Completed</div>
-                <div className="text-xl font-medium">{completedCount}/{objectives.length}</div>
+                <div className="text-xl font-medium">
+                  {isLoading ? <Skeleton className="h-6 w-12" /> : `${completedCount}/${objectives.length}`}
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-3 rounded-lg bg-secondary p-3">
@@ -213,7 +230,9 @@ const ObjectivesTracker = () => {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">In Progress</div>
-                <div className="text-xl font-medium">{inProgressCount}/{objectives.length}</div>
+                <div className="text-xl font-medium">
+                  {isLoading ? <Skeleton className="h-6 w-12" /> : `${inProgressCount}/${objectives.length}`}
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-3 rounded-lg bg-secondary p-3">
@@ -222,125 +241,154 @@ const ObjectivesTracker = () => {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">At Risk</div>
-                <div className="text-xl font-medium">{atRiskCount}/{objectives.length}</div>
+                <div className="text-xl font-medium">
+                  {isLoading ? <Skeleton className="h-6 w-12" /> : `${atRiskCount}/${objectives.length}`}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Objectives list */}
           <div className="mt-6 space-y-3">
-            {objectives.map((objective) => (
-              <div
-                key={objective.id}
-                className={cn(
-                  "overflow-hidden rounded-lg border transition-all duration-300 ease-in-out",
-                  expandedObjective === objective.id
-                    ? "shadow-md"
-                    : "shadow-sm hover:shadow-md"
-                )}
-              >
-                <div
-                  className="flex cursor-pointer items-center justify-between p-4"
-                  onClick={() => toggleObjective(objective.id)}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="shrink-0">
-                      {objective.status === "Completed" ? (
-                        <ClipboardCheck className="h-5 w-5 text-green-600" />
-                      ) : (
-                        <ClipboardList className="h-5 w-5 text-blue-600" />
-                      )}
+            {isLoading ? (
+              // Loading skeleton
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="overflow-hidden rounded-lg border shadow-sm">
+                  <div className="p-4">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-6 w-48" />
+                      <Skeleton className="h-6 w-24" />
                     </div>
-                    <div>
-                      <h4 className="font-medium">{objective.title}</h4>
-                      <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-                        <span>
-                          Weight: {objective.weight}%
-                        </span>
-                        <Badge
-                          className={cn(
-                            "font-normal",
-                            getStatusColor(objective.status)
-                          )}
-                          variant="secondary"
-                        >
-                          {objective.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="hidden text-right sm:block">
-                      <div className="text-sm font-medium">
-                        {objective.progress}%
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Progress
-                      </div>
-                    </div>
-                    <Progress
-                      className="h-2 w-24"
-                      value={objective.progress}
-                    />
-                    {expandedObjective === objective.id ? (
-                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    )}
+                    <Skeleton className="mt-2 h-4 w-64" />
                   </div>
                 </div>
-                {expandedObjective === objective.id && (
-                  <div className="animate-accordion-down border-t bg-secondary/50 px-4 py-3">
-                    <div className="mb-3 text-sm">{objective.description}</div>
-                    <div className="grid gap-3 md:grid-cols-4">
-                      <div>
-                        <div className="text-xs font-medium uppercase text-muted-foreground">
-                          KPI
-                        </div>
-                        <div className="text-sm">{objective.kpi}</div>
+              ))
+            ) : objectives.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+                <ClipboardList className="mb-2 h-8 w-8 text-muted-foreground" />
+                <h3 className="mb-1 text-lg font-medium">No objectives yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Click the "Add Objective" button to create your first SMART objective.
+                </p>
+                <Button onClick={handleAddObjective} className="mt-4">
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add Objective
+                </Button>
+              </div>
+            ) : (
+              objectives.map((objective) => (
+                <div
+                  key={objective.id}
+                  className={cn(
+                    "overflow-hidden rounded-lg border transition-all duration-300 ease-in-out",
+                    expandedObjective === objective.id
+                      ? "shadow-md"
+                      : "shadow-sm hover:shadow-md"
+                  )}
+                >
+                  <div
+                    className="flex cursor-pointer items-center justify-between p-4"
+                    onClick={() => toggleObjective(objective.id)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="shrink-0">
+                        {objective.status === "Completed" ? (
+                          <ClipboardCheck className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <ClipboardList className="h-5 w-5 text-blue-600" />
+                        )}
                       </div>
                       <div>
-                        <div className="text-xs font-medium uppercase text-muted-foreground">
-                          Target
+                        <h4 className="font-medium">{objective.title}</h4>
+                        <div className="flex items-center space-x-3 text-sm text-muted-foreground">
+                          <span>
+                            Weight: {objective.weight}%
+                          </span>
+                          <Badge
+                            className={cn(
+                              "font-normal",
+                              getStatusColor(objective.status)
+                            )}
+                            variant="secondary"
+                          >
+                            {objective.status}
+                          </Badge>
                         </div>
-                        <div className="text-sm">{objective.target}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium uppercase text-muted-foreground">
-                          Due Date
-                        </div>
-                        <div className="text-sm">
-                          {new Date(objective.dueDate).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditObjective(objective);
-                          }}
-                        >
-                          <Edit className="mr-1 h-3 w-3" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                          onClick={(e) => confirmDelete(objective.id, e)}
-                        >
-                          <Trash2 className="mr-1 h-3 w-3" />
-                          Delete
-                        </Button>
                       </div>
                     </div>
+                    <div className="flex items-center space-x-4">
+                      <div className="hidden text-right sm:block">
+                        <div className="text-sm font-medium">
+                          {objective.progress}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Progress
+                        </div>
+                      </div>
+                      <Progress
+                        className="h-2 w-24"
+                        value={objective.progress}
+                      />
+                      {expandedObjective === objective.id ? (
+                        <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-            ))}
+                  {expandedObjective === objective.id && (
+                    <div className="animate-accordion-down border-t bg-secondary/50 px-4 py-3">
+                      <div className="mb-3 text-sm">{objective.description}</div>
+                      <div className="grid gap-3 md:grid-cols-4">
+                        <div>
+                          <div className="text-xs font-medium uppercase text-muted-foreground">
+                            KPI
+                          </div>
+                          <div className="text-sm">{objective.kpi}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-medium uppercase text-muted-foreground">
+                            Target
+                          </div>
+                          <div className="text-sm">{objective.target}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-medium uppercase text-muted-foreground">
+                            Due Date
+                          </div>
+                          <div className="text-sm">
+                            {new Date(objective.dueDate).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditObjective(objective);
+                            }}
+                          >
+                            <Edit className="mr-1 h-3 w-3" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                            onClick={(e) => confirmDelete(objective.id, e)}
+                          >
+                            <Trash2 className="mr-1 h-3 w-3" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
       </CardContent>

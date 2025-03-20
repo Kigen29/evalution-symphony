@@ -8,18 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import ObjectiveForm from "./ObjectiveForm";
-
-export type Objective = {
-  id: number;
-  title: string;
-  description: string;
-  kpi: string;
-  weight: number;
-  target: string;
-  progress: number;
-  status: "On Track" | "At Risk" | "Delayed" | "Completed";
-  dueDate: string;
-};
+import { Objective } from "@/lib/supabase";
 
 interface ObjectiveDialogProps {
   open: boolean;

@@ -6,6 +6,7 @@ import ObjectivesTracker from "@/components/ObjectivesTracker";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import ObjectiveDialog from "@/components/ObjectiveDialog";
+import { Objective } from "@/lib/supabase";
 
 const Objectives = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
