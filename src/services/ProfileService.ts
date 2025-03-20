@@ -27,7 +27,8 @@ export const getProfile = async (): Promise<Profile | null> => {
       .single();
       
     if (error) {
-      throw error;
+      console.error('Error fetching profile:', error);
+      return null;
     }
     
     return data;
@@ -56,7 +57,8 @@ export const updateProfile = async (updates: Partial<Profile>): Promise<Profile 
       .single();
       
     if (error) {
-      throw error;
+      console.error('Error updating profile:', error);
+      return null;
     }
     
     return data;
@@ -82,7 +84,8 @@ export const uploadProfilePicture = async (file: File): Promise<string | null> =
       .upload(filePath, file, { upsert: true });
       
     if (uploadError) {
-      throw uploadError;
+      console.error('Error uploading profile picture:', uploadError);
+      return null;
     }
     
     const { data } = supabase.storage

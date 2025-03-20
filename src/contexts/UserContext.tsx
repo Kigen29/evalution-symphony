@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { Profile, getProfile } from '@/services/ProfileService';
+import { useToast } from '@/components/ui/use-toast';
 
 type UserContextType = {
   session: Session | null;
@@ -20,6 +21,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Get initial session
@@ -28,10 +30,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        getProfile().then(setProfile);
+        getProfile().then(profile => {
+          setProfile(profile);
+          setIsLoading(false);
+        }).catch(() => {
+          toast({
+            title: "Failed to load profile",
+            description: "Please try refreshing the page",
+            variant: "destructive"
+          });
+          setIsLoading(false);
+        });
+      } else {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     });
 
     // Listen for auth changes
@@ -41,28 +53,46 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          getProfile().then(setProfile);
+          getProfile().then(setProfile).catch(console.error);
         } else {
           setProfile(null);
         }
-        
-        setIsLoading(false);
       }
     );
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [toast]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Signed out successfully",
+      });
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({
+        title: "Error signing out",
+        variant: "destructive"
+      });
+    }
   };
 
   const refreshProfile = async () => {
     if (user) {
-      const updatedProfile = await getProfile();
-      setProfile(updatedProfile);
+      try {
+        const updatedProfile = await getProfile();
+        setProfile(updatedProfile);
+        return;
+      } catch (error) {
+        console.error("Error refreshing profile:", error);
+        toast({
+          title: "Error refreshing profile",
+          variant: "destructive"
+        });
+      }
     }
   };
 

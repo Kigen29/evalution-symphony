@@ -16,26 +16,28 @@ export const getObjectives = async (): Promise<Objective[]> => {
       .order('created_at', { ascending: false });
       
     if (error) {
-      throw error;
+      console.error('Error fetching objectives:', error);
+      return [];
     }
     
     return data.map(mapDbObjectiveToObjective);
   } catch (error) {
     console.error('Error fetching objectives:', error);
-    throw error;
+    return [];
   }
 };
 
-export const getObjective = async (id: number): Promise<Objective | null> => {
+export const getObjective = async (id: string): Promise<Objective | null> => {
   try {
     const { data, error } = await supabase
       .from('objectives')
       .select('*')
-      .eq('id', id.toString())
+      .eq('id', id)
       .single();
       
     if (error) {
-      throw error;
+      console.error(`Error fetching objective with id ${id}:`, error);
+      return null;
     }
     
     return mapDbObjectiveToObjective(data as DbObjective);
@@ -67,17 +69,18 @@ export const createObjective = async (objective: Omit<Objective, 'id' | 'progres
       .single();
       
     if (error) {
-      throw error;
+      console.error('Error creating objective:', error);
+      return null;
     }
     
     return mapDbObjectiveToObjective(data as DbObjective);
   } catch (error) {
     console.error('Error creating objective:', error);
-    throw error;
+    return null;
   }
 };
 
-export const updateObjective = async (id: number, updates: Partial<Objective>): Promise<Objective | null> => {
+export const updateObjective = async (id: string, updates: Partial<Objective>): Promise<Objective | null> => {
   try {
     const { data: user } = await supabase.auth.getUser();
     
@@ -90,34 +93,36 @@ export const updateObjective = async (id: number, updates: Partial<Objective>): 
     const { data, error } = await supabase
       .from('objectives')
       .update(dbUpdates)
-      .eq('id', id.toString())
+      .eq('id', id)
       .select()
       .single();
       
     if (error) {
-      throw error;
+      console.error(`Error updating objective with id ${id}:`, error);
+      return null;
     }
     
     return mapDbObjectiveToObjective(data as DbObjective);
   } catch (error) {
     console.error(`Error updating objective with id ${id}:`, error);
-    throw error;
+    return null;
   }
 };
 
-export const updateObjectiveProgress = async (id: number, progress: number): Promise<Objective | null> => {
+export const updateObjectiveProgress = async (id: string, progress: number): Promise<Objective | null> => {
   return updateObjective(id, { progress });
 };
 
-export const deleteObjective = async (id: number): Promise<boolean> => {
+export const deleteObjective = async (id: string): Promise<boolean> => {
   try {
     const { error } = await supabase
       .from('objectives')
       .delete()
-      .eq('id', id.toString());
+      .eq('id', id);
       
     if (error) {
-      throw error;
+      console.error(`Error deleting objective with id ${id}:`, error);
+      return false;
     }
     
     return true;
