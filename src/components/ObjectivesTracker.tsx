@@ -39,7 +39,7 @@ const initialObjectives = [
     weight: 20,
     target: "4.5/5.0",
     progress: 80,
-    status: "On Track",
+    status: "On Track" as const,
     dueDate: "2023-12-31",
   },
   {
@@ -50,7 +50,7 @@ const initialObjectives = [
     weight: 15,
     target: "15%",
     progress: 60,
-    status: "At Risk",
+    status: "At Risk" as const,
     dueDate: "2023-12-31",
   },
   {
@@ -62,7 +62,7 @@ const initialObjectives = [
     weight: 25,
     target: "100%",
     progress: 45,
-    status: "Delayed",
+    status: "Delayed" as const,
     dueDate: "2023-12-31",
   },
   {
@@ -74,7 +74,7 @@ const initialObjectives = [
     weight: 10,
     target: "4 sessions",
     progress: 100,
-    status: "Completed",
+    status: "Completed" as const,
     dueDate: "2023-12-31",
   },
   {
@@ -86,7 +86,7 @@ const initialObjectives = [
     weight: 15,
     target: "3 partnerships",
     progress: 33,
-    status: "On Track",
+    status: "On Track" as const,
     dueDate: "2023-12-31",
   },
 ];
