@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import ObjectivesTracker from "@/components/ObjectivesTracker";
 import { Button } from "@/components/ui/button";
