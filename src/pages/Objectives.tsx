@@ -1,12 +1,15 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import ObjectivesTracker from "@/components/ObjectivesTracker";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import ObjectiveDialog from "@/components/ObjectiveDialog";
 
 const Objectives = () => {
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   return (
     <DashboardLayout>
       <Helmet>
@@ -21,7 +24,7 @@ const Objectives = () => {
             Manage and track your performance objectives
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setDialogOpen(true)}>
           <PlusCircle className="mr-1 h-4 w-4" />
           New Objective
         </Button>
@@ -29,6 +32,17 @@ const Objectives = () => {
 
       {/* Objectives tracker */}
       <ObjectivesTracker />
+
+      {/* Add Objective Dialog triggered from header button */}
+      <ObjectiveDialog 
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={(values) => {
+          console.log("Values from page button:", values);
+          setDialogOpen(false);
+        }}
+        isEditing={false}
+      />
     </DashboardLayout>
   );
 };

@@ -8,15 +8,28 @@ import {
   ClipboardList,
   Edit,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import ObjectiveDialog from "./ObjectiveDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
-// Sample objectives data
-const sampleObjectives = [
+// Sample objectives data - this would come from an API in a real app
+const initialObjectives = [
   {
     id: 1,
     title: "Improve customer satisfaction score",
@@ -78,10 +91,25 @@ const sampleObjectives = [
   },
 ];
 
+export type Objective = {
+  id: number;
+  title: string;
+  description: string;
+  kpi: string;
+  weight: number;
+  target: string;
+  progress: number;
+  status: "On Track" | "At Risk" | "Delayed" | "Completed";
+  dueDate: string;
+};
+
 const ObjectivesTracker = () => {
-  const [expandedObjective, setExpandedObjective] = useState<number | null>(
-    null
-  );
+  const [objectives, setObjectives] = useState<Objective[]>(initialObjectives);
+  const [expandedObjective, setExpandedObjective] = useState<number | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingObjective, setEditingObjective] = useState<Objective | undefined>(undefined);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [objectiveToDelete, setObjectiveToDelete] = useState<number | null>(null);
 
   const toggleObjective = (id: number) => {
     setExpandedObjective(expandedObjective === id ? null : id);
@@ -102,13 +130,66 @@ const ObjectivesTracker = () => {
     }
   };
 
+  const handleAddObjective = () => {
+    setEditingObjective(undefined);
+    setDialogOpen(true);
+  };
+
+  const handleEditObjective = (objective: Objective) => {
+    setEditingObjective(objective);
+    setDialogOpen(true);
+  };
+
+  const handleSaveObjective = (data: Omit<Objective, "id" | "progress">) => {
+    if (editingObjective) {
+      // Update existing objective
+      setObjectives(
+        objectives.map((obj) =>
+          obj.id === editingObjective.id
+            ? { ...obj, ...data, progress: obj.progress }
+            : obj
+        )
+      );
+    } else {
+      // Add new objective
+      const newId = Math.max(0, ...objectives.map((o) => o.id)) + 1;
+      setObjectives([
+        ...objectives,
+        { ...data, id: newId, progress: 0 },
+      ]);
+    }
+    setEditingObjective(undefined);
+  };
+
+  const confirmDelete = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setObjectiveToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteObjective = () => {
+    if (objectiveToDelete !== null) {
+      setObjectives(objectives.filter((obj) => obj.id !== objectiveToDelete));
+      toast.success("Objective deleted successfully");
+    }
+    setDeleteDialogOpen(false);
+    setObjectiveToDelete(null);
+  };
+
+  // Calculate summary counts
+  const completedCount = objectives.filter((obj) => obj.status === "Completed").length;
+  const atRiskCount = objectives.filter((obj) => obj.status === "At Risk").length;
+  const inProgressCount = objectives.filter(
+    (obj) => obj.status !== "Completed"
+  ).length;
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-xl font-medium">
           SMART Objectives
         </CardTitle>
-        <Button size="sm" className="h-8">
+        <Button size="sm" className="h-8" onClick={handleAddObjective}>
           <Plus className="mr-1 h-4 w-4" />
           Add Objective
         </Button>
@@ -123,7 +204,7 @@ const ObjectivesTracker = () => {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Completed</div>
-                <div className="text-xl font-medium">1/5</div>
+                <div className="text-xl font-medium">{completedCount}/{objectives.length}</div>
               </div>
             </div>
             <div className="flex items-center space-x-3 rounded-lg bg-secondary p-3">
@@ -132,7 +213,7 @@ const ObjectivesTracker = () => {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">In Progress</div>
-                <div className="text-xl font-medium">3/5</div>
+                <div className="text-xl font-medium">{inProgressCount}/{objectives.length}</div>
               </div>
             </div>
             <div className="flex items-center space-x-3 rounded-lg bg-secondary p-3">
@@ -141,14 +222,14 @@ const ObjectivesTracker = () => {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">At Risk</div>
-                <div className="text-xl font-medium">1/5</div>
+                <div className="text-xl font-medium">{atRiskCount}/{objectives.length}</div>
               </div>
             </div>
           </div>
 
           {/* Objectives list */}
           <div className="mt-6 space-y-3">
-            {sampleObjectives.map((objective) => (
+            {objectives.map((objective) => (
               <div
                 key={objective.id}
                 className={cn(
@@ -200,7 +281,6 @@ const ObjectivesTracker = () => {
                     <Progress
                       className="h-2 w-24"
                       value={objective.progress}
-                      style={{ "--progress-width": `${objective.progress}%` } as React.CSSProperties}
                     />
                     {expandedObjective === objective.id ? (
                       <ChevronUp className="h-5 w-5 text-muted-foreground" />
@@ -233,18 +313,27 @@ const ObjectivesTracker = () => {
                           {new Date(objective.dueDate).toLocaleDateString()}
                         </div>
                       </div>
-                      <div className="flex justify-end">
+                      <div className="flex justify-end space-x-2">
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-8"
                           onClick={(e) => {
                             e.stopPropagation();
-                            console.log("Edit objective", objective.id);
+                            handleEditObjective(objective);
                           }}
                         >
                           <Edit className="mr-1 h-3 w-3" />
                           Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                          onClick={(e) => confirmDelete(objective.id, e)}
+                        >
+                          <Trash2 className="mr-1 h-3 w-3" />
+                          Delete
                         </Button>
                       </div>
                     </div>
@@ -255,6 +344,34 @@ const ObjectivesTracker = () => {
           </div>
         </div>
       </CardContent>
+
+      {/* Add/Edit Objective Dialog */}
+      <ObjectiveDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        objective={editingObjective}
+        onSave={handleSaveObjective}
+        isEditing={!!editingObjective}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              objective from your account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteObjective} className="bg-red-500 text-white hover:bg-red-600">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

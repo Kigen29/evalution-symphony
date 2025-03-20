@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Bell, Download, MoveUpRight, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,11 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 import PerformanceMetrics from "@/components/PerformanceMetrics";
 import RatingVisualizer from "@/components/RatingVisualizer";
 import ObjectivesTracker from "@/components/ObjectivesTracker";
+import ProfileEditor from "@/components/ProfileEditor";
 
 const Index = () => {
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
+
   return (
     <DashboardLayout>
       <Helmet>
@@ -29,7 +32,11 @@ const Index = () => {
             <Bell className="mr-1 h-4 w-4" />
             Notifications
           </Button>
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setProfileEditorOpen(true)}
+          >
             <UserCog className="mr-1 h-4 w-4" />
             Profile
           </Button>
@@ -64,21 +71,31 @@ const Index = () => {
                       title: "Schedule Review Meeting",
                       description: "Set up your next performance discussion",
                       icon: <UserCog className="h-5 w-5" />,
+                      onClick: () => {
+                        console.log("Schedule review clicked");
+                      },
                     },
                     {
                       title: "Update Objectives",
                       description: "Review and modify your current objectives",
                       icon: <MoveUpRight className="h-5 w-5" />,
+                      onClick: () => {
+                        window.location.href = "/objectives";
+                      },
                     },
                     {
                       title: "Download Contract",
                       description: "Get a PDF version of your contract",
                       icon: <Download className="h-5 w-5" />,
+                      onClick: () => {
+                        console.log("Download contract clicked");
+                      },
                     },
                   ].map((action, index) => (
                     <div
                       key={index}
                       className="flex cursor-pointer items-center space-x-3 rounded-lg border p-3 transition-colors hover:bg-secondary"
+                      onClick={action.onClick}
                     >
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                         {action.icon}
@@ -97,6 +114,12 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      {/* Profile Editor */}
+      <ProfileEditor 
+        open={profileEditorOpen}
+        onOpenChange={setProfileEditorOpen}
+      />
     </DashboardLayout>
   );
 };
