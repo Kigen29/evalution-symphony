@@ -1,23 +1,12 @@
 
-import { supabase } from '@/lib/supabase';
+import { supabase, Profile, DbProfile, mapDbProfileToProfile, mapProfileToDbProfile } from '@/lib/supabase';
 
-export type Profile = {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  position: string | null;
-  department: string | null;
-  manager: string | null;
-  avatar_url: string | null;
-  updated_at: string | null;
-};
-
-export const getProfile = async (): Promise<Profile | null> => {
+export const getProfile = async (): Promise<Profile> => {
   try {
     const { data: user } = await supabase.auth.getUser();
     
     if (!user.user) {
-      return null;
+      throw new Error('No user logged in');
     }
     
     const { data, error } = await supabase
@@ -28,17 +17,17 @@ export const getProfile = async (): Promise<Profile | null> => {
       
     if (error) {
       console.error('Error fetching profile:', error);
-      return null;
+      throw error;
     }
     
-    return data;
+    return mapDbProfileToProfile(data as DbProfile);
   } catch (error) {
     console.error('Error fetching profile:', error);
-    return null;
+    throw error;
   }
 };
 
-export const updateProfile = async (updates: Partial<Profile>): Promise<Profile | null> => {
+export const updateProfile = async (profile: Partial<Profile>): Promise<Profile> => {
   try {
     const { data: user } = await supabase.auth.getUser();
     
@@ -46,58 +35,26 @@ export const updateProfile = async (updates: Partial<Profile>): Promise<Profile 
       throw new Error('No user logged in');
     }
     
+    const updates = mapProfileToDbProfile({
+      ...profile,
+      id: user.user.id
+    });
+    
     const { data, error } = await supabase
       .from('profiles')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
+      .update(updates)
       .eq('id', user.user.id)
       .select()
       .single();
       
     if (error) {
       console.error('Error updating profile:', error);
-      return null;
+      throw error;
     }
     
-    return data;
+    return mapDbProfileToProfile(data as DbProfile);
   } catch (error) {
     console.error('Error updating profile:', error);
-    return null;
-  }
-};
-
-export const uploadProfilePicture = async (file: File): Promise<string | null> => {
-  try {
-    const { data: user } = await supabase.auth.getUser();
-    
-    if (!user.user) {
-      throw new Error('No user logged in');
-    }
-    
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${user.user.id}/avatar.${fileExt}`;
-    
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file, { upsert: true });
-      
-    if (uploadError) {
-      console.error('Error uploading profile picture:', uploadError);
-      return null;
-    }
-    
-    const { data } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-      
-    // Update profile with new avatar URL
-    await updateProfile({ avatar_url: data.publicUrl });
-    
-    return data.publicUrl;
-  } catch (error) {
-    console.error('Error uploading profile picture:', error);
-    return null;
+    throw error;
   }
 };
