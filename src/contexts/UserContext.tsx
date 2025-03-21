@@ -1,8 +1,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, Profile } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
-import { Profile, getProfile } from '@/services/ProfileService';
+import { getProfile } from '@/services/ProfileService';
 import { useToast } from '@/components/ui/use-toast';
 
 type UserContextType = {
