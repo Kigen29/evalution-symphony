@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   AlertCircle,
@@ -38,11 +39,11 @@ import {
 
 const ObjectivesTracker = () => {
   const queryClient = useQueryClient();
-  const [expandedObjective, setExpandedObjective] = useState<number | null>(null);
+  const [expandedObjective, setExpandedObjective] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingObjective, setEditingObjective] = useState<Objective | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [objectiveToDelete, setObjectiveToDelete] = useState<number | null>(null);
+  const [objectiveToDelete, setObjectiveToDelete] = useState<string | null>(null);
 
   // Fetch objectives from Supabase
   const { data: objectives = [], isLoading } = useQuery({
@@ -65,7 +66,7 @@ const ObjectivesTracker = () => {
 
   // Update objective mutation
   const updateObjectiveMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number, data: Partial<Objective> }) => 
+    mutationFn: ({ id, data }: { id: string, data: Partial<Objective> }) => 
       updateObjective(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['objectives'] });
@@ -79,7 +80,7 @@ const ObjectivesTracker = () => {
 
   // Delete objective mutation
   const deleteObjectiveMutation = useMutation({
-    mutationFn: (id: number) => deleteObjective(id),
+    mutationFn: (id: string) => deleteObjective(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['objectives'] });
       toast.success('Objective deleted successfully');
@@ -90,7 +91,7 @@ const ObjectivesTracker = () => {
     }
   });
 
-  const toggleObjective = (id: number) => {
+  const toggleObjective = (id: string) => {
     setExpandedObjective(expandedObjective === id ? null : id);
   };
 
@@ -135,7 +136,7 @@ const ObjectivesTracker = () => {
     setEditingObjective(undefined);
   };
 
-  const confirmDelete = (id: number, e: React.MouseEvent) => {
+  const confirmDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setObjectiveToDelete(id);
     setDeleteDialogOpen(true);
@@ -383,3 +384,4 @@ const ObjectivesTracker = () => {
 };
 
 export default ObjectivesTracker;
+
