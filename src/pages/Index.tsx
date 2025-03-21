@@ -9,9 +9,13 @@ import PerformanceMetrics from "@/components/PerformanceMetrics";
 import RatingVisualizer from "@/components/RatingVisualizer";
 import ObjectivesTracker from "@/components/ObjectivesTracker";
 import ProfileEditor from "@/components/ProfileEditor";
+import { useUser } from "@/contexts/UserContext";
 
 const Index = () => {
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
+  const { profile, isLoading } = useUser();
+
+  const userName = profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() : 'User';
 
   return (
     <DashboardLayout>
@@ -23,7 +27,7 @@ const Index = () => {
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <p className="text-sm text-muted-foreground">
-            Welcome back, John Doe
+            Welcome back, {isLoading ? 'Loading...' : userName}
           </p>
           <h1 className="text-3xl font-semibold">Performance Dashboard</h1>
         </div>

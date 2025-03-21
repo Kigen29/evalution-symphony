@@ -1,9 +1,10 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, Profile } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 import { getProfile } from '@/services/ProfileService';
 import { useToast } from '@/components/ui/use-toast';
+import { Profile } from '@/lib/supabase';
 
 type UserContextType = {
   session: Session | null;
