@@ -161,7 +161,7 @@ export const deleteObjective = async (id: string): Promise<boolean> => {
   }
 };
 
-export const getObjectivesByStatus = async (status: string): Promise<Objective[]> => {
+export const getObjectivesByStatus = async (status: '' | ObjectiveStatus): Promise<Objective[]> => {
   return getObjectives({ status });
 };
 
