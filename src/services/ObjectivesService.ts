@@ -1,7 +1,9 @@
 import { supabase, Objective, DbObjective, mapDbObjectiveToObjective, mapObjectiveToDbObjective } from '@/lib/supabase';
 
+type ObjectiveStatus = "On Track" | "At Risk" | "Delayed" | "Completed";
+
 export const getObjectives = async (filters?: {
-  status?: string;
+  status?: '' | ObjectiveStatus;
   dueDate?: { before?: string; after?: string };
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
@@ -136,8 +138,8 @@ export const updateObjective = async (id: string, updates: Partial<Objective>): 
   }
 };
 
-export const updateObjectiveProgress = async (id: string, progress: number): Promise<Objective | null> => {
-  return updateObjective(id, { progress });
+export const updateObjectiveProgress = async (id: string, progress: number, status?: ObjectiveStatus): Promise<Objective | null> => {
+  return updateObjective(id, { progress, ...(status && { status }) });
 };
 
 export const deleteObjective = async (id: string): Promise<boolean> => {

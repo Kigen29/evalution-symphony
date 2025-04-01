@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   AlertCircle,
@@ -53,6 +52,8 @@ import {
   deleteObjective 
 } from "@/services/ObjectivesService";
 
+type ObjectiveStatus = "On Track" | "At Risk" | "Delayed" | "Completed";
+
 const ObjectivesTracker = () => {
   const queryClient = useQueryClient();
   const [expandedObjective, setExpandedObjective] = useState<string | null>(null);
@@ -63,18 +64,16 @@ const ObjectivesTracker = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [objectiveToDelete, setObjectiveToDelete] = useState<string | null>(null);
   const [filters, setFilters] = useState({
-    status: '',
+    status: '' as '' | ObjectiveStatus,
     sortBy: 'created_at',
     sortOrder: 'desc' as 'asc' | 'desc'
   });
 
-  // Fetch objectives from Supabase with filters
   const { data: objectives = [], isLoading } = useQuery({
     queryKey: ['objectives', filters],
     queryFn: () => getObjectives(filters)
   });
 
-  // Create objective mutation
   const createObjectiveMutation = useMutation({
     mutationFn: (data: Omit<Objective, "id" | "progress">) => createObjective(data),
     onSuccess: () => {
@@ -87,7 +86,6 @@ const ObjectivesTracker = () => {
     }
   });
 
-  // Update objective mutation
   const updateObjectiveMutation = useMutation({
     mutationFn: ({ id, data }: { id: string, data: Partial<Objective> }) => 
       updateObjective(id, data),
@@ -101,9 +99,8 @@ const ObjectivesTracker = () => {
     }
   });
 
-  // Update objective progress mutation
   const updateProgressMutation = useMutation({
-    mutationFn: ({ id, progress, status }: { id: string, progress: number, status: string }) => {
+    mutationFn: ({ id, progress, status }: { id: string, progress: number, status: ObjectiveStatus }) => {
       return updateObjective(id, { progress, status });
     },
     onSuccess: () => {
@@ -116,7 +113,6 @@ const ObjectivesTracker = () => {
     }
   });
 
-  // Delete objective mutation
   const deleteObjectiveMutation = useMutation({
     mutationFn: (id: string) => deleteObjective(id),
     onSuccess: () => {
@@ -165,13 +161,11 @@ const ObjectivesTracker = () => {
 
   const handleSaveObjective = async (data: Omit<Objective, "id" | "progress">) => {
     if (editingObjective) {
-      // Update existing objective
       updateObjectiveMutation.mutate({ 
         id: editingObjective.id, 
         data 
       });
     } else {
-      // Add new objective
       createObjectiveMutation.mutate(data);
     }
     
@@ -179,7 +173,7 @@ const ObjectivesTracker = () => {
     setEditingObjective(undefined);
   };
 
-  const handleSaveProgress = async (objectiveId: string, updates: { progress: number; status: string; notes?: string }) => {
+  const handleSaveProgress = async (objectiveId: string, updates: { progress: number; status: ObjectiveStatus; notes?: string }) => {
     updateProgressMutation.mutate({
       id: objectiveId,
       progress: updates.progress,
@@ -205,10 +199,12 @@ const ObjectivesTracker = () => {
   };
 
   const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => ({ 
+      ...prev, 
+      [key]: key === 'status' ? (value as '' | ObjectiveStatus) : value 
+    }));
   };
 
-  // Calculate summary counts
   const completedCount = objectives.filter((obj) => obj.status === "Completed").length;
   const atRiskCount = objectives.filter((obj) => obj.status === "At Risk").length;
   const inProgressCount = objectives.filter(
@@ -295,7 +291,6 @@ const ObjectivesTracker = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {/* Summary */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="flex items-center space-x-3 rounded-lg bg-secondary p-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-green-600">
@@ -332,10 +327,8 @@ const ObjectivesTracker = () => {
             </div>
           </div>
 
-          {/* Objectives list */}
           <div className="mt-6 space-y-3">
             {isLoading ? (
-              // Loading skeleton
               Array.from({ length: 3 }).map((_, index) => (
                 <div key={index} className="overflow-hidden rounded-lg border shadow-sm">
                   <div className="p-4">
@@ -489,7 +482,6 @@ const ObjectivesTracker = () => {
         </div>
       </CardContent>
 
-      {/* Add/Edit Objective Dialog */}
       <ObjectiveDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -498,7 +490,6 @@ const ObjectivesTracker = () => {
         isEditing={!!editingObjective}
       />
 
-      {/* Progress Update Dialog */}
       {updatingObjective && (
         <ProgressUpdateDialog
           open={progressDialogOpen}
@@ -508,7 +499,6 @@ const ObjectivesTracker = () => {
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

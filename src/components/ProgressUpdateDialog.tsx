@@ -38,12 +38,13 @@ const progressUpdateSchema = z.object({
 });
 
 type ProgressUpdateValues = z.infer<typeof progressUpdateSchema>;
+type ObjectiveStatus = "On Track" | "At Risk" | "Delayed" | "Completed";
 
 interface ProgressUpdateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   objective: Objective;
-  onSave: (objectiveId: string, updates: { progress: number; status: string; notes?: string }) => void;
+  onSave: (objectiveId: string, updates: { progress: number; status: ObjectiveStatus; notes?: string }) => void;
 }
 
 const ProgressUpdateDialog = ({
@@ -56,13 +57,17 @@ const ProgressUpdateDialog = ({
     resolver: zodResolver(progressUpdateSchema),
     defaultValues: {
       progress: objective.progress,
-      status: objective.status,
+      status: objective.status as ObjectiveStatus,
       notes: "",
     },
   });
 
   const handleSubmit = (values: ProgressUpdateValues) => {
-    onSave(objective.id, values);
+    onSave(objective.id, {
+      progress: values.progress,
+      status: values.status,
+      notes: values.notes
+    });
     onOpenChange(false);
   };
 
