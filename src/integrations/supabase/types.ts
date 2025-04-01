@@ -9,7 +9,84 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      objectives: {
+        Row: {
+          created_at: string | null
+          description: string
+          due_date: string
+          id: string
+          kpi: string
+          progress: number
+          status: string
+          target: string
+          title: string
+          updated_at: string | null
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          due_date: string
+          id?: string
+          kpi: string
+          progress?: number
+          status: string
+          target: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+          weight: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          due_date?: string
+          id?: string
+          kpi?: string
+          progress?: number
+          status?: string
+          target?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          department: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          manager: string | null
+          position: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          department?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          manager?: string | null
+          position?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          department?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          manager?: string | null
+          position?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
