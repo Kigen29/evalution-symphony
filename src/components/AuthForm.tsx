@@ -18,6 +18,16 @@ const AuthForm = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Please enter both email and password",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -28,6 +38,7 @@ const AuthForm = () => {
       });
       navigate('/');
     } catch (error: any) {
+      console.error("Sign in error:", error);
       toast({
         title: "Failed to sign in",
         description: error.message || "Please check your credentials and try again",
@@ -40,6 +51,25 @@ const AuthForm = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Please enter both email and password",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -48,8 +78,8 @@ const AuthForm = () => {
         title: "Account created successfully",
         description: "Please check your email to confirm your account"
       });
-      navigate('/');
     } catch (error: any) {
+      console.error("Sign up error:", error);
       toast({
         title: "Failed to create account",
         description: error.message || "Please try again with different credentials",
