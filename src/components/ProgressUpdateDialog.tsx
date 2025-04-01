@@ -1,4 +1,3 @@
-
 import React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -30,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Objective } from "@/lib/supabase";
+import { LineChart, Save, X } from "lucide-react";
 
 const progressUpdateSchema = z.object({
   progress: z.number().min(0).max(100),
@@ -75,7 +75,10 @@ const ProgressUpdateDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Update Progress</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <LineChart className="h-5 w-5" />
+            Update Progress
+          </DialogTitle>
           <DialogDescription>
             Update the progress and status for objective: {objective.title}
           </DialogDescription>
@@ -159,11 +162,16 @@ const ProgressUpdateDialog = ({
               <Button
                 variant="outline"
                 type="button"
+                size="sm"
                 onClick={() => onOpenChange(false)}
               >
+                <X className="mr-1 h-3 w-3" />
                 Cancel
               </Button>
-              <Button type="submit">Save Progress</Button>
+              <Button type="submit" size="sm">
+                <Save className="mr-1 h-3 w-3" />
+                Save Progress
+              </Button>
             </div>
           </form>
         </Form>

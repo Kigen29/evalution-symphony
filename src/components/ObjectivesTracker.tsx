@@ -9,7 +9,7 @@ import {
   Filter,
   Plus,
   Trash2,
-  BarChart,
+  LineChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -447,8 +447,8 @@ const ObjectivesTracker = () => {
                               handleUpdateProgress(objective);
                             }}
                           >
-                            <BarChart className="mr-1 h-3 w-3" />
-                            Update Progress
+                            <LineChart className="mr-1 h-3 w-3" />
+                            Update
                           </Button>
                           <Button
                             size="sm"
