@@ -1,10 +1,11 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { getProfile } from '@/services/ProfileService';
 import { useToast } from '@/components/ui/use-toast';
 import { Profile } from '@/lib/supabase';
+import { signOut as authSignOut } from '@/services/AuthService';
 
 type UserContextType = {
   session: Session | null;
@@ -25,41 +26,55 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        getProfile().then(profile => {
-          setProfile(profile);
-          setIsLoading(false);
-        }).catch(() => {
-          toast({
-            title: "Failed to load profile",
-            description: "Please try refreshing the page",
-            variant: "destructive"
-          });
-          setIsLoading(false);
-        });
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    // Listen for auth changes
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Use setTimeout to prevent potential auth deadlocks
         if (session?.user) {
-          getProfile().then(setProfile).catch(console.error);
+          setTimeout(() => {
+            getProfile()
+              .then(setProfile)
+              .catch(err => {
+                console.error("Error fetching profile during auth change:", err);
+                // Don't show a toast here to prevent UI clutter during transitions
+              });
+          }, 0);
         } else {
           setProfile(null);
         }
       }
     );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        getProfile()
+          .then(profile => {
+            setProfile(profile);
+            setIsLoading(false);
+          })
+          .catch(err => {
+            console.error("Error fetching initial profile:", err);
+            toast({
+              title: "Could not load profile",
+              description: "Please try refreshing the page",
+              variant: "destructive"
+            });
+            setIsLoading(false);
+          });
+      } else {
+        setIsLoading(false);
+      }
+    }).catch(err => {
+      console.error("Error getting session:", err);
+      setIsLoading(false);
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -68,7 +83,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      setIsLoading(true);
+      await authSignOut();
+      setUser(null);
+      setSession(null);
+      setProfile(null);
       toast({
         title: "Signed out successfully",
       });
@@ -78,6 +97,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         title: "Error signing out",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 

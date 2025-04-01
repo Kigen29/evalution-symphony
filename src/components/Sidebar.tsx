@@ -1,54 +1,69 @@
 
 import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   ClipboardList,
   Cog,
   Home,
   LineChart,
+  LogIn,
+  LogOut,
   Menu,
   User,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-
-const navItems = [
-  {
-    name: "Dashboard",
-    path: "/",
-    icon: <Home size={20} />,
-  },
-  {
-    name: "Objectives",
-    path: "/objectives",
-    icon: <LineChart size={20} />,
-  },
-  {
-    name: "Performance Contract",
-    path: "/contract",
-    icon: <ClipboardList size={20} />,
-  },
-  {
-    name: "Reports",
-    path: "/reports",
-    icon: <BarChart3 size={20} />,
-  },
-  {
-    name: "Settings",
-    path: "/settings",
-    icon: <Cog size={20} />,
-  },
-];
+import { useUser } from "@/contexts/UserContext";
+import { Button } from "@/components/ui/button";
 
 const Sidebar = () => {
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(isMobile);
+  const { user, profile, signOut } = useUser();
+  const navigate = useNavigate();
 
   // Toggle sidebar
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
+  };
+
+  const navItems = [
+    {
+      name: "Dashboard",
+      path: "/",
+      icon: <Home size={20} />,
+    },
+    {
+      name: "Objectives",
+      path: "/objectives",
+      icon: <LineChart size={20} />,
+    },
+    {
+      name: "Performance Contract",
+      path: "/contract",
+      icon: <ClipboardList size={20} />,
+    },
+    {
+      name: "Reports",
+      path: "/reports",
+      icon: <BarChart3 size={20} />,
+    },
+    {
+      name: "Settings",
+      path: "/settings",
+      icon: <Cog size={20} />,
+    },
+  ];
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  const handleSignIn = () => {
+    navigate('/auth');
   };
 
   return (
@@ -88,17 +103,30 @@ const Sidebar = () => {
 
           {/* User profile summary */}
           <div className="mb-6 px-6">
-            <div className="flex items-center space-x-3 rounded-lg bg-secondary p-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <User size={20} />
+            {user ? (
+              <div className="flex items-center space-x-3 rounded-lg bg-secondary p-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <User size={20} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">
+                    {profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() : 'User'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {profile?.position || 'No position set'}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">John Doe</span>
-                <span className="text-xs text-muted-foreground">
-                  Administrator
-                </span>
-              </div>
-            </div>
+            ) : (
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={handleSignIn}
+              >
+                <LogIn className="mr-2 h-4 w-4" />
+                Sign In
+              </Button>
+            )}
           </div>
 
           {/* Navigation */}
@@ -122,6 +150,20 @@ const Sidebar = () => {
               </NavLink>
             ))}
           </nav>
+
+          {/* Sign out button for authenticated users */}
+          {user && (
+            <div className="px-3 mb-4">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+                onClick={handleSignOut}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </div>
+          )}
 
           {/* Footer */}
           <div className="mt-auto p-4 text-center">
