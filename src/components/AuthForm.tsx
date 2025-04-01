@@ -31,10 +31,11 @@ const AuthForm = () => {
     setIsLoading(true);
     
     try {
-      await signIn(email, password);
+      const data = await signIn(email, password);
+      const role = data.user?.user_metadata?.role || 'user';
       toast({
         title: "Signed in successfully",
-        description: "Welcome back!"
+        description: `Welcome back! You are logged in as a ${role}.`
       });
       navigate('/');
     } catch (error: any) {

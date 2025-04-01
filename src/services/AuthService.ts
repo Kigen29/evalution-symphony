@@ -6,6 +6,11 @@ export const signUp = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          role: 'user' // Default role for new users
+        }
+      }
     });
     
     if (error) throw error;
@@ -59,4 +64,8 @@ export const getCurrentSession = async () => {
     console.error('Error getting current session:', error);
     throw error;
   }
+};
+
+export const getUserRole = (user: any) => {
+  return user?.user_metadata?.role || 'user';
 };

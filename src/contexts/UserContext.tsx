@@ -5,12 +5,13 @@ import { Session, User } from '@supabase/supabase-js';
 import { getProfile } from '@/services/ProfileService';
 import { useToast } from '@/components/ui/use-toast';
 import { Profile } from '@/lib/supabase';
-import { signOut as authSignOut } from '@/services/AuthService';
+import { signOut as authSignOut, getUserRole } from '@/services/AuthService';
 
 type UserContextType = {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  role: string;
   isLoading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -22,6 +23,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [role, setRole] = useState<string>('user');
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -32,8 +34,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Use setTimeout to prevent potential auth deadlocks
         if (session?.user) {
+          setRole(getUserRole(session.user));
+          
+          // Use setTimeout to prevent potential auth deadlocks
           setTimeout(() => {
             getProfile()
               .then(setProfile)
@@ -44,6 +48,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           }, 0);
         } else {
           setProfile(null);
+          setRole('user');
         }
       }
     );
@@ -54,6 +59,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
+        setRole(getUserRole(session.user));
+        
         getProfile()
           .then(profile => {
             setProfile(profile);
@@ -88,6 +95,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setSession(null);
       setProfile(null);
+      setRole('user');
       toast({
         title: "Signed out successfully",
       });
@@ -122,7 +130,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     <UserContext.Provider value={{ 
       session, 
       user, 
-      profile, 
+      profile,
+      role,
       isLoading,
       signOut,
       refreshProfile
