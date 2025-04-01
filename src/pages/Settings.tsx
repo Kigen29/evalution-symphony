@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,8 +16,34 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BellRing, User, Shield, Bell, Globe } from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
+import { toast } from "sonner";
+import { updateProfile } from "@/services/ProfileService";
+import { useForm } from "react-hook-form";
+import { Profile } from "@/lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Settings = () => {
+  const { profile, refreshProfile } = useUser();
+  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleProfileUpdate = async (data: Partial<Profile>) => {
+    try {
+      setIsLoading(true);
+      await updateProfile(data);
+      await refreshProfile();
+      toast.success("Profile updated successfully");
+      // Invalidate any queries that might depend on profile data
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <Helmet>
@@ -63,23 +89,56 @@ const Settings = () => {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" defaultValue="John" />
+                  <Input 
+                    id="firstName" 
+                    defaultValue={profile?.firstName || ""} 
+                    onChange={(e) => {
+                      // Debounce this in a real application
+                      if (e.target.value !== profile?.firstName) {
+                        handleProfileUpdate({ firstName: e.target.value });
+                      }
+                    }}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" defaultValue="Doe" />
+                  <Input 
+                    id="lastName" 
+                    defaultValue={profile?.lastName || ""} 
+                    onChange={(e) => {
+                      if (e.target.value !== profile?.lastName) {
+                        handleProfileUpdate({ lastName: e.target.value });
+                      }
+                    }}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="john.doe@example.com" />
+                  <Input id="email" type="email" defaultValue="john.doe@example.com" disabled />
+                  <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" defaultValue="+1 (555) 123-4567" />
+                  <Label htmlFor="position">Position</Label>
+                  <Input 
+                    id="position" 
+                    defaultValue={profile?.position || ""}
+                    onChange={(e) => {
+                      if (e.target.value !== profile?.position) {
+                        handleProfileUpdate({ position: e.target.value });
+                      }
+                    }}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
-                  <Select defaultValue="finance">
+                  <Select 
+                    defaultValue={profile?.department || ""}
+                    onValueChange={(value) => {
+                      if (value !== profile?.department) {
+                        handleProfileUpdate({ department: value });
+                      }
+                    }}
+                  >
                     <SelectTrigger id="department">
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
@@ -93,12 +152,25 @@ const Settings = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="position">Position</Label>
-                  <Input id="position" defaultValue="Senior Accountant" />
+                  <Label htmlFor="manager">Manager</Label>
+                  <Input 
+                    id="manager" 
+                    defaultValue={profile?.manager || ""}
+                    onChange={(e) => {
+                      if (e.target.value !== profile?.manager) {
+                        handleProfileUpdate({ manager: e.target.value });
+                      }
+                    }}
+                  />
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button>Save Changes</Button>
+                <Button 
+                  onClick={() => refreshProfile()} 
+                  disabled={isLoading}
+                >
+                  Refresh Profile
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -261,3 +333,4 @@ const Settings = () => {
 };
 
 export default Settings;
+
