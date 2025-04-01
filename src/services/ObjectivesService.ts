@@ -1,7 +1,11 @@
-
 import { supabase, Objective, DbObjective, mapDbObjectiveToObjective, mapObjectiveToDbObjective } from '@/lib/supabase';
 
-export const getObjectives = async (): Promise<Objective[]> => {
+export const getObjectives = async (filters?: {
+  status?: string;
+  dueDate?: { before?: string; after?: string };
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}): Promise<Objective[]> => {
   try {
     const { data: user } = await supabase.auth.getUser();
     
@@ -9,11 +13,34 @@ export const getObjectives = async (): Promise<Objective[]> => {
       return [];
     }
     
-    const { data, error } = await supabase
+    let query = supabase
       .from('objectives')
       .select('*')
-      .eq('user_id', user.user.id)
-      .order('created_at', { ascending: false });
+      .eq('user_id', user.user.id);
+      
+    // Apply filters if provided
+    if (filters?.status) {
+      query = query.eq('status', filters.status);
+    }
+    
+    if (filters?.dueDate?.before) {
+      query = query.lte('due_date', filters.dueDate.before);
+    }
+    
+    if (filters?.dueDate?.after) {
+      query = query.gte('due_date', filters.dueDate.after);
+    }
+    
+    // Apply sorting if provided
+    if (filters?.sortBy) {
+      const order = filters.sortOrder || 'desc';
+      query = query.order(filters.sortBy, { ascending: order === 'asc' });
+    } else {
+      // Default sorting by created_at descending
+      query = query.order('created_at', { ascending: false });
+    }
+    
+    const { data, error } = await query;
       
     if (error) {
       console.error('Error fetching objectives:', error);
@@ -129,5 +156,51 @@ export const deleteObjective = async (id: string): Promise<boolean> => {
   } catch (error) {
     console.error(`Error deleting objective with id ${id}:`, error);
     return false;
+  }
+};
+
+export const getObjectivesByStatus = async (status: string): Promise<Objective[]> => {
+  return getObjectives({ status });
+};
+
+export const getUpcomingObjectives = async (daysAhead: number = 30): Promise<Objective[]> => {
+  const today = new Date();
+  const futureDate = new Date();
+  futureDate.setDate(today.getDate() + daysAhead);
+  
+  return getObjectives({
+    dueDate: {
+      after: today.toISOString().split('T')[0],
+      before: futureDate.toISOString().split('T')[0]
+    },
+    status: 'On Track'
+  });
+};
+
+export const getObjectivesByProgressRange = async (minProgress: number, maxProgress: number): Promise<Objective[]> => {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    
+    if (!user.user) {
+      return [];
+    }
+    
+    const { data, error } = await supabase
+      .from('objectives')
+      .select('*')
+      .eq('user_id', user.user.id)
+      .gte('progress', minProgress)
+      .lte('progress', maxProgress)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching objectives by progress range:', error);
+      return [];
+    }
+    
+    return data.map(mapDbObjectiveToObjective);
+  } catch (error) {
+    console.error('Error fetching objectives by progress range:', error);
+    return [];
   }
 };

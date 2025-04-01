@@ -7,8 +7,10 @@ import {
   ClipboardCheck,
   ClipboardList,
   Edit,
+  Filter,
   Plus,
   Trash2,
+  BarChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -16,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import ObjectiveDialog from "./ObjectiveDialog";
+import ProgressUpdateDialog from "./ProgressUpdateDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +29,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Objective } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,6 +49,7 @@ import {
   getObjectives, 
   createObjective, 
   updateObjective, 
+  updateObjectiveProgress, 
   deleteObjective 
 } from "@/services/ObjectivesService";
 
@@ -41,14 +57,21 @@ const ObjectivesTracker = () => {
   const queryClient = useQueryClient();
   const [expandedObjective, setExpandedObjective] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
   const [editingObjective, setEditingObjective] = useState<Objective | undefined>(undefined);
+  const [updatingObjective, setUpdatingObjective] = useState<Objective | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [objectiveToDelete, setObjectiveToDelete] = useState<string | null>(null);
+  const [filters, setFilters] = useState({
+    status: '',
+    sortBy: 'created_at',
+    sortOrder: 'desc' as 'asc' | 'desc'
+  });
 
-  // Fetch objectives from Supabase
+  // Fetch objectives from Supabase with filters
   const { data: objectives = [], isLoading } = useQuery({
-    queryKey: ['objectives'],
-    queryFn: getObjectives
+    queryKey: ['objectives', filters],
+    queryFn: () => getObjectives(filters)
   });
 
   // Create objective mutation
@@ -75,6 +98,21 @@ const ObjectivesTracker = () => {
     onError: (error) => {
       console.error('Error updating objective:', error);
       toast.error('Failed to update objective');
+    }
+  });
+
+  // Update objective progress mutation
+  const updateProgressMutation = useMutation({
+    mutationFn: ({ id, progress, status }: { id: string, progress: number, status: string }) => {
+      return updateObjective(id, { progress, status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['objectives'] });
+      toast.success('Progress updated successfully');
+    },
+    onError: (error) => {
+      console.error('Error updating progress:', error);
+      toast.error('Failed to update progress');
     }
   });
 
@@ -120,6 +158,11 @@ const ObjectivesTracker = () => {
     setDialogOpen(true);
   };
 
+  const handleUpdateProgress = (objective: Objective) => {
+    setUpdatingObjective(objective);
+    setProgressDialogOpen(true);
+  };
+
   const handleSaveObjective = async (data: Omit<Objective, "id" | "progress">) => {
     if (editingObjective) {
       // Update existing objective
@@ -136,6 +179,17 @@ const ObjectivesTracker = () => {
     setEditingObjective(undefined);
   };
 
+  const handleSaveProgress = async (objectiveId: string, updates: { progress: number; status: string; notes?: string }) => {
+    updateProgressMutation.mutate({
+      id: objectiveId,
+      progress: updates.progress,
+      status: updates.status
+    });
+    
+    setProgressDialogOpen(false);
+    setUpdatingObjective(undefined);
+  };
+
   const confirmDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setObjectiveToDelete(id);
@@ -148,6 +202,10 @@ const ObjectivesTracker = () => {
     }
     setDeleteDialogOpen(false);
     setObjectiveToDelete(null);
+  };
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
   // Calculate summary counts
@@ -163,10 +221,77 @@ const ObjectivesTracker = () => {
         <CardTitle className="text-xl font-medium">
           SMART Objectives
         </CardTitle>
-        <Button size="sm" className="h-8" onClick={handleAddObjective}>
-          <Plus className="mr-1 h-4 w-4" />
-          Add Objective
-        </Button>
+        <div className="flex space-x-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                <Filter className="mr-1 h-4 w-4" />
+                Filter
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="space-y-2">
+                <h4 className="font-medium">Filter Objectives</h4>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-sm font-medium">Status</label>
+                    <Select
+                      value={filters.status}
+                      onValueChange={(value) => handleFilterChange('status', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All Statuses</SelectItem>
+                        <SelectItem value="On Track">On Track</SelectItem>
+                        <SelectItem value="At Risk">At Risk</SelectItem>
+                        <SelectItem value="Delayed">Delayed</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Sort By</label>
+                    <Select
+                      value={filters.sortBy}
+                      onValueChange={(value) => handleFilterChange('sortBy', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sort By" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="created_at">Date Created</SelectItem>
+                        <SelectItem value="due_date">Due Date</SelectItem>
+                        <SelectItem value="progress">Progress</SelectItem>
+                        <SelectItem value="weight">Weight</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Sort Order</label>
+                    <Select
+                      value={filters.sortOrder}
+                      onValueChange={(value) => handleFilterChange('sortOrder', value as 'asc' | 'desc')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sort Order" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="asc">Ascending</SelectItem>
+                        <SelectItem value="desc">Descending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button size="sm" className="h-8" onClick={handleAddObjective}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add Objective
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -326,6 +451,18 @@ const ObjectivesTracker = () => {
                             className="h-8"
                             onClick={(e) => {
                               e.stopPropagation();
+                              handleUpdateProgress(objective);
+                            }}
+                          >
+                            <BarChart className="mr-1 h-3 w-3" />
+                            Update Progress
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
                               handleEditObjective(objective);
                             }}
                           >
@@ -361,6 +498,16 @@ const ObjectivesTracker = () => {
         isEditing={!!editingObjective}
       />
 
+      {/* Progress Update Dialog */}
+      {updatingObjective && (
+        <ProgressUpdateDialog
+          open={progressDialogOpen}
+          onOpenChange={setProgressDialogOpen}
+          objective={updatingObjective}
+          onSave={handleSaveProgress}
+        />
+      )}
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -384,4 +531,3 @@ const ObjectivesTracker = () => {
 };
 
 export default ObjectivesTracker;
-

@@ -4,13 +4,15 @@ import { Helmet } from "react-helmet-async";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import ObjectivesTracker from "@/components/ObjectivesTracker";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, BarChart4 } from "lucide-react";
 import ObjectiveDialog from "@/components/ObjectiveDialog";
 import { Objective } from "@/lib/supabase";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { createObjective } from "@/services/ObjectivesService";
 import { toast } from "sonner";
 import { useUser } from "@/contexts/UserContext";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const Objectives = () => {
   const { user } = useUser();
@@ -59,8 +61,41 @@ const Objectives = () => {
         </Button>
       </div>
 
-      {/* Objectives tracker */}
-      <ObjectivesTracker />
+      {/* Main Content */}
+      <Tabs defaultValue="objectives" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="objectives">My Objectives</TabsTrigger>
+          <TabsTrigger value="insights">Performance Insights</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="objectives">
+          {/* Objectives tracker */}
+          <ObjectivesTracker />
+        </TabsContent>
+        
+        <TabsContent value="insights">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Performance Insights</CardTitle>
+                  <CardDescription>View analytics about your objectives and performance</CardDescription>
+                </div>
+                <BarChart4 className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border p-6 text-center">
+                <h3 className="mb-2 text-lg font-medium">Performance Analytics Coming Soon</h3>
+                <p className="text-sm text-muted-foreground">
+                  Detailed performance analytics and reporting features are under development.
+                  Check back soon for comprehensive insights into your objectives.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Add Objective Dialog triggered from header button */}
       <ObjectiveDialog 
