@@ -1,23 +1,18 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Get Supabase URL and key from environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-// Check if Supabase credentials are properly set
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(`
-    Error: Missing Supabase credentials. 
-    Make sure to set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY 
-    in your environment variables (.env file).
-    
-    You can get these values from your Supabase project settings > API.
-  `);
-}
+// Get Supabase URL and key from the existing client configuration
+const SUPABASE_URL = "https://iyqqyeixjgbwdjtmqbzc.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5cXF5ZWl4amdid2RqdG1xYnpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1NTc0ODQsImV4cCI6MjA1ODEzMzQ4NH0.vQW1nI8VnFQ-rsRVJTr-mvI4s0VDkKLH0TLrofLXK8Q";
 
 // Initialize Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
 
 // Define types for our database schema
 export type DbObjective = {
